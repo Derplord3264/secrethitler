@@ -1,37 +1,71 @@
-const drone = new Scaledrone('ptsqRZDha7XGR4Op'); // Replace with your Scaledrone channel ID
-const room = drone.subscribe('secret-hitler');
-
+const drone = new Scaledrone('YOUR_CHANNEL_ID'); // Replace with your Scaledrone channel ID
+let room; // Current room
 let playerName = '';
 let players = [];
 let roles = [];
 let gameState = 'lobby'; // States: lobby, game, voting, enactPolicy, end
+let currentPresident = null;
 let currentChancellor = null;
 let votes = {};
 let policiesPassed = { liberal: 0, fascist: 0 };
+let isHost = false; // Track if the player is the host
 
-document.getElementById('joinButton').addEventListener('click', joinGame);
+// UI Elements
+const joinButton = document.getElementById('joinButton');
+const createGameButton = document.getElementById('createGameButton');
+const roomInput = document.getElementById('roomInput');
+const chatInput = document.getElementById('chatInput');
+const playerListDiv = document.getElementById('players');
+const hostControlsDiv = document.getElementById('hostControls'); // Div for host controls
+
+// Event Listeners
+joinButton.addEventListener('click', joinGame);
+createGameButton.addEventListener('click', createGame);
 document.getElementById('sendMessageButton').addEventListener('click', sendMessage);
 
-room.on('message', handleMessage);
+function createGame() {
+    const roomName = roomInput.value.trim();
+    if (!roomName) return alert('Please enter a room name.');
+    
+    room = drone.subscribe(`secret-hitler-${roomName}`);
+    initializeRoom(true); // Set host to true
+}
 
 function joinGame() {
+    const roomName = roomInput.value.trim();
+    if (!roomName) return alert('Please enter a room name.');
+    
+    room = drone.subscribe(`secret-hitler-${roomName}`);
+    initializeRoom(false); // Set host to false
+}
+
+function initializeRoom(host) {
     playerName = document.getElementById('playerName').value.trim();
-    if (playerName) {
-        players.push(playerName);
-        updatePlayers();
-        drone.publish({ room: 'secret-hitler', message: { type: 'newPlayer', name: playerName } });
-        if (players.length >= 5 && gameState === 'lobby') {
-            startGame();
-        }
+    if (!playerName) return alert('Please enter your name.');
+    
+    if (players.includes(playerName)) {
+        return alert('You have already joined this game!');
     }
+    
+    players.push(playerName);
+    updatePlayers();
+    drone.publish({ room: room.name, message: { type: 'newPlayer', name: playerName, isHost: host } });
+    
+    isHost = host;
+    hostControlsDiv.style.display = isHost ? 'block' : 'none'; // Show/Hide host controls
+    
+    document.getElementById('lobby').style.display = 'none';
+    document.getElementById('gameArea').style.display = 'block';
+    
+    room.on('message', handleMessage);
 }
 
 function sendMessage() {
-    const messageContent = document.getElementById('chatInput').value.trim();
+    const messageContent = chatInput.value.trim();
     if (messageContent) {
         const message = { name: playerName, content: messageContent };
-        drone.publish({ room: 'secret-hitler', message: { type: 'chatMessage', message } });
-        document.getElementById('chatInput').value = ''; // Clear input
+        drone.publish({ room: room.name, message: { type: 'chatMessage', message } });
+        chatInput.value = ''; // Clear input
     }
 }
 
@@ -39,16 +73,20 @@ function handleMessage(message) {
     if (message.data.type === 'newPlayer') {
         players.push(message.data.name);
         updatePlayers();
+        if (message.data.isHost) {
+            isHost = true;
+            hostControlsDiv.style.display = 'block';
+        }
     } else if (message.data.type === 'roleAssigned') {
-        alert(`${message.data.name}, you are a ${message.data.role}!`);
-    } else if (message.data.type === 'startVoting') {
-        initiateVoting();
-    } else if (message.data.type === 'vote') {
-        handleVote(message.data);
-    } else if (message.data.type === 'policyEnacted') {
-        enactPolicy(message.data.policy);
-    } else if (message.data.type === 'gameEnd') {
-        endGame(message.data.winner);
+        if (message.data.name === playerName) {
+            alert(`You are a ${message.data.role}!`);
+        }
+    } else if (message.data.type === 'startGame') {
+        startGame();
+    } else if (message.data.type === 'kicked') {
+        alert(`${message.data.name} has been kicked from the game.`);
+        players = players.filter(p => p !== message.data.name);
+        updatePlayers();
     } else if (message.data.type === 'chatMessage') {
         displayChatMessage(message.data.message);
     }
@@ -56,25 +94,51 @@ function handleMessage(message) {
 
 function startGame() {
     if (players.length < 5) return alert('Need at least 5 players to start!');
+    
     gameState = 'game';
     assignRoles();
     updateGameStatus('Game has started! Roles are assigned.');
-    document.getElementById('lobby').style.display = 'none';
-    document.getElementById('gameArea').style.display = 'block';
-    initiateVoting();
+    currentPresident = players[0]; // Set the first player as the president
+    initiateChancellorSelection();
 }
 
 function assignRoles() {
     const roleCount = players.length >= 6 ? 3 : 2; // 3 Fascists for 6+ players
-    roles = ['Liberal'.repeat(players.length - roleCount).split(''), 'Fascist'.repeat(roleCount).split(''), 'Hitler'].flat();
+    roles = ['Liberal'.repeat(players.length - roleCount).split(''), 
+             'Fascist'.repeat(roleCount).split(''), 
+             'Hitler'].flat();
     roles.sort(() => Math.random() - 0.5);
+    
     players.forEach((player, index) => {
-        drone.publish({ room: 'secret-hitler', message: { type: 'roleAssigned', name: player, role: roles[index] } });
+        drone.publish({ room: room.name, message: { type: 'roleAssigned', name: player, role: roles[index] } });
     });
 }
 
+function initiateChancellorSelection() {
+    updateGameStatus(`President ${currentPresident}, select a Chancellor.`);
+    const chancellorOptions = players.filter(p => p !== currentPresident).map(p => `
+        <button onclick="selectChancellor('${p}')">${p}</button>
+    `).join('');
+    
+    document.getElementById('chancellorSelection').innerHTML = chancellorOptions;
+}
+
+function selectChancellor(chancellor) {
+    currentChancellor = chancellor;
+    updateGameStatus(`${currentPresident} has selected ${currentChancellor} as Chancellor. Starting voting...`);
+    initiateVoting();
+}
+
+function kickPlayer(kickedPlayer) {
+    if (!isHost) return alert('Only the host can kick players.');
+    if (!players.includes(kickedPlayer)) return alert('Player not found.');
+
+    players = players.filter(p => p !== kickedPlayer);
+    drone.publish({ room: room.name, message: { type: 'kicked', name: kickedPlayer } });
+    updatePlayers();
+}
+
 function initiateVoting() {
-    currentChancellor = players[Math.floor(Math.random() * players.length)];
     votes = {};
     updateGameStatus(`Voting for Chancellor: ${currentChancellor}. Please cast your vote (yes/no):`);
     
@@ -95,7 +159,7 @@ function handleVoteClick(vote) {
 
 function handleVote(voteData) {
     votes[voteData.voter] = voteData.vote;
-    drone.publish({ room: 'secret-hitler', message: voteData });
+    drone.publish({ room: room.name, message: voteData });
 
     if (Object.keys(votes).length === players.length) {
         finalizeVoting();
@@ -112,8 +176,14 @@ function finalizeVoting() {
         enactPolicyPrompt();
     } else {
         updateGameStatus(`Vote failed. Next round.`);
-        initiateVoting();
+        currentPresident = getNextPresident(); // Move to next president
+        initiateChancellorSelection();
     }
+}
+
+function getNextPresident() {
+    const currentIndex = players.indexOf(currentPresident);
+    return players[(currentIndex + 1) % players.length]; // Rotate president
 }
 
 function enactPolicyPrompt() {
@@ -124,23 +194,12 @@ function enactPolicyPrompt() {
 function enactPolicy(policy) {
     if (policy === 'liberal' || policy === 'fascist') {
         policiesPassed[policy]++;
-        drone.publish({ room: 'secret-hitler', message: { type: 'policyEnacted', policy } });
+        drone.publish({ room: room.name, message: { type: 'policyEnacted', policy } });
         checkWinCondition();
     } else {
         alert('Invalid policy. Choose liberal or fascist.');
         enactPolicyPrompt();
     }
-}
-
-function enactPolicy(policy) {
-    policiesPassed[policy]++;
-    document.getElementById('policyResult').innerText = `${policy.charAt(0).toUpperCase() + policy.slice(1)} policy enacted.`;
-    document.getElementById('policyArea').style.display = 'block';
-    checkWinCondition();
-    setTimeout(() => {
-        document.getElementById('policyArea').style.display = 'none';
-        initiateVoting();
-    }, 2000);
 }
 
 function checkWinCondition() {
@@ -154,7 +213,7 @@ function checkWinCondition() {
 function endGame(winner) {
     gameState = 'end';
     updateGameStatus(`${winner} win!`);
-    drone.publish({ room: 'secret-hitler', message: { type: 'gameEnd', winner } });
+    drone.publish({ room: room.name, message: { type: 'gameEnd', winner } });
 }
 
 function updateGameStatus(status) {
@@ -162,7 +221,9 @@ function updateGameStatus(status) {
 }
 
 function updatePlayers() {
-    document.getElementById('players').innerHTML = players.map(p => `<div>${p}</div>`).join('');
+    playerListDiv.innerHTML = players.map(p => `
+        <div>${p} ${isHost ? `<button onclick="kickPlayer('${p}')">Kick</button>` : ''}</div>
+    `).join('');
 }
 
 function displayChatMessage(message) {
