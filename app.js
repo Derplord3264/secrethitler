@@ -1,4 +1,4 @@
-const drone = new Scaledrone('YOUR_CHANNEL_ID'); // Replace with your Scaledrone channel ID
+const drone = new Scaledrone('ptsqRZDha7XGR4Op'); // Replace with your Scaledrone channel ID
 let room; // Current room
 let playerName = '';
 let players = [];
