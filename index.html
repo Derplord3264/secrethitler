@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secret Hitler</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="game">
+        <h1>Secret Hitler</h1>
+        <div id="lobby">
+            <h2>Lobby</h2>
+            <div id="players"></div>
+            <input type="text" id="playerName" placeholder="Enter your name">
+            <button id="joinButton">Join Game</button>
+        </div>
+        <div id="gameArea" style="display:none;">
+            <h2 id="gameStatus"></h2>
+            <div id="actionArea"></div>
+            <div id="votingArea" style="display:none;">
+                <h3>Vote for Chancellor</h3>
+                <div id="voteButtons"></div>
+            </div>
+            <div id="policyArea" style="display:none;">
+                <h3>Policy Enacted</h3>
+                <div id="policyResult"></div>
+            </div>
+            <div id="chatArea">
+                <h3>Chat</h3>
+                <div id="chatMessages"></div>
+                <input type="text" id="chatInput" placeholder="Type a message..." />
+                <button id="sendMessageButton">Send</button>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.scaledrone.com/scaledrone.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
