@@ -1,0 +1,90 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background-size: cover;
+    background-position: center;
+    color: #fff;
+    margin: 0;
+    padding: 0;
+}
+
+#game {
+    max-width: 600px;
+    margin: auto;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.7); /* Semi-transparent background */
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 20px;
+    text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.7);
+}
+
+h2, h3 {
+    margin: 10px 0;
+    text-align: center;
+}
+
+#lobby, #gameArea {
+    margin: 20px 0;
+}
+
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    background: #28a745; /* Green background */
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.2s;
+}
+
+button:hover {
+    background: #218838; /* Darker green on hover */
+    transform: scale(1.05);
+}
+
+#players {
+    margin-bottom: 20px;
+}
+
+#chatArea {
+    margin-top: 20px;
+}
+
+#chatMessages {
+    max-height: 150px;
+    overflow-y: auto;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #ccc;
+    padding: 10px;
+    border-radius: 5px;
+    color: #fff;
+}
+
+#chatInput {
+    width: calc(100% - 100px);
+    padding: 10px;
+    margin-right: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+#sendMessageButton {
+    width: 80px;
+}
+
+#policyArea {
+    margin: 10px 0;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 10px;
+    border-radius: 5px;
+}
+
+#policyResult {
+    text-align: center;
+    font-weight: bold;
+}
